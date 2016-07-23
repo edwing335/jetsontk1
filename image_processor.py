@@ -7,6 +7,7 @@ class ImageCalculater(object):
   def __init__(self, width, height):
     cv2.namedWindow("frame")
     cv2.namedWindow("origin_frame")
+    self.camera = None
     self.frame_width = width
     self.frame_height = height
 
@@ -41,7 +42,10 @@ class ImageCalculater(object):
       # self.custom_wait_key('frame', current_img, prvs_img)
       cv2.imwrite('object-image' + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png',current_img)
 
-  def calculate_optical_flow(self, prvs_gray, current_gray):
+  def calculate_optical_flow(self, current_img, prvs_img):
+    current_gray = cv2.cvtColor(current_img, cv2.COLOR_BGR2GRAY)
+    prvs_gray = cv2.cvtColor(prvs_img, cv2.COLOR_BGR2GRAY)
+
     flow = cv2.calcOpticalFlowFarneback(prvs_gray, current_gray, 0.5, 3, 15, 3, 5, 1.2, 0)
     binary_pic = np.zeros(current_gray.shape, np.uint8)
 
@@ -78,21 +82,23 @@ class ImageCalculater(object):
     if type(contour) is bool:
       return
 
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     area = cv2.contourArea(contour)
     rect = cv2.minAreaRect(contour)
     (vx, vy), (x, y), angle = rect
 
     if (area > 2000) and (abs(angle) < 4) and (float(y)/float(x) > 2):
-      print('area, %d, angle: %f, x/y: %f'%(area, abs(angle), float(y)/float(x) ))
+      print(rect)
+      print('area: %d, angle: %f, x/y: %f'%(area, abs(angle), float(y)/float(x) ))
       box = np.int0(cv2.cv.BoxPoints(rect))
-      cv2.drawContours(frame, [box], 0, (255,255,255), 1, 8)
-      self.custom_wait_key('origin_frame', frame, frame)
+      cv2.drawContours(gray_frame, [box], 0, (255,255,255), 1, 8)
+      self.custom_wait_key('origin_frame', gray_frame, gray_frame)
       self.save_image(frame, 'pics/')
+      self.save_image(gray_frame, 'pics/')
 
       return True
     else:
       return False
-
 
     # area = cv2.contourArea(contour)
     # if area > 1000:
@@ -109,29 +115,85 @@ class ImageCalculater(object):
     # self.custom_wait_key('frame', frame, frame)
     # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
-  def search_by_optical_flow(self, camera):
-    ret, prvs_frame = camera.read()
+  def tracking_by_optical_flow(self):
+    grabbed, prvs_frame = self.camera.read()
+    if not grabbed:
+      return
+
     count = intervel = 2
 
     while(1):
-      ret, current_frame = camera.read()
-      current_gray = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      # self.custom_wait_key('origin_frame', current_gray, current_gray)
-      current_gray = cv2.cvtColor(current_gray, cv2.COLOR_BGR2GRAY)
-      prvs_gray = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      prvs_gray = cv2.cvtColor(prvs_gray, cv2.COLOR_BGR2GRAY)
+      ret, current_frame = self.camera.read()
+      prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      self.custom_wait_key('origin_frame', current_image, current_image)
 
       count = count - 1
       if count == 1:
           count = intervel
 
-          contour = self.calculate_optical_flow(prvs_gray, current_gray)
-          if self.calculate_contour_by_frame(contour, prvs_gray):
-            return contour
+          contour = self.calculate_optical_flow(current_image, prvs_image)
+          if self.calculate_contour_by_frame(contour, prvs_image):
+            return current_image, contour
 
           prvs_frame = current_frame
+
+  def search_by_optical_flow(self):
+    grabbed, prvs_frame = self.camera.read()
+    if not grabbed:
+      return
+    while(1):
+      ret, current_frame = self.camera.read()
+      prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      # self.custom_wait_key('origin_frame', current_image, current_image)
+
+      contour = self.calculate_optical_flow(current_image, prvs_image)
+      if self.calculate_contour_by_frame(contour, prvs_image):
+        return current_image, contour
+
+      prvs_frame = current_frame
+
+  def track_by_camshif(self, frame, contour):
+    area = cv2.contourArea(contour)
+    rect = cv2.minAreaRect(contour)
+    (vx, vy), (x, y), angle = rect
+    vx, vy, x, y = np.int0((vx, vy, x, y))
+
+    roi = frame[vy:(vy+y), vx:(x+vx)]
+    roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    #roi = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB)
+
+    # compute a HSV histogram for the ROI and store the
+    # bounding box
+    roiHist = cv2.calcHist([roi], [0], None, [16], [0, 180])
+    roiHist = cv2.normalize(roiHist, roiHist, 0, 255, cv2.NORM_MINMAX)
+    roiBox = (vx, vy, x, y)
+    termination = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
+
+    while(1):
+      ret, current_frame = self.camera.read()
+      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      self.custom_wait_key('origin_frame', current_image, current_image)
+
+      hsv = cv2.cvtColor(current_image, cv2.COLOR_BGR2HSV)
+      backProj = cv2.calcBackProject([hsv], [0], roiHist, [0, 180], 1)
+
+      # apply cam shift to the back projection, convert the
+      # points to a bounding box, and then draw them
+      (r, roiBox) = cv2.CamShift(backProj, roiBox, termination)
+      pts = np.int0(cv2.cv.BoxPoints(r))
+      cv2.polylines(current_image, [pts], True, (0, 255, 0), 2)
+      self.custom_wait_key('frame', current_image, current_image)
+
+    # (150.5, 127.5), (45.0, 91.0), -0.0)
+    # image = cv2.imread("./pics/opticalfb-2016-07-23-21-12-53.png")
+    # vx, vy, x, y, angle = np.int0((150.5, 127.5, 45.0, 91.0, -0.0))
+    # ((163.0, 137.5), (40.0, 101.0), -0.0) 'opticalfb-2016-07-23-21-12-22.png'
 
 if __name__ == "__main__":
   pass
 else:
   pass
+
+
