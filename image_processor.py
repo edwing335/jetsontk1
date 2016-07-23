@@ -5,8 +5,13 @@ import numpy as np
 class ImageCalculater(object):
   """docstring for ImageCalculater"""
   def __init__(self, width, height):
+    cv2.namedWindow("frame")
+    cv2.namedWindow("origin_frame")
     self.frame_width = width
     self.frame_height = height
+
+  def save_image(self, frame, path='./', prefix='opticalfb'):
+    cv2.imwrite(path + prefix + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png', frame)
 
   def custom_wait_key(self, window_name, frame, saved_frame):
     cv2.imshow(window_name, frame)
@@ -33,30 +38,8 @@ class ImageCalculater(object):
       cv2.rectangle(current_img, (bounding_rect_x, bounding_rect_y), (bounding_rect_x+bounding_rect_w, bounding_rect_y+bounding_rect_h), (0,255,0), 1, 8, 0);
       cv2.circle(current_img, center_point, 2, (0,0,255), -1, 8, 0)
       cv2.putText(current_img, "center at (%d, %d), width: %d, height: %d, %d"%(bounding_rect_w/2, bounding_rect_h/2, bounding_rect_w, bounding_rect_h, area), (0, 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.5, (0,0,0), 1, 8, False)
-      self.custom_wait_key('frame', current_img, prvs_img)
-
-  def isTrackedPerson(self, rect_w, rect_h, area):
-      if area > 800:
-          if float(rect_h)/float(rect_w) > 2:
-              self.is_get_object = True
-              print("get tracking object...")
-              print("current area is %d, %f"%(area, float(rect_h)/float(rect_w)) )
-              return True
-          elif float(rect_h)/float(rect_w) < 1.25:
-              print("object is down...")
-              return False
-
-      else:
-          return False
-
-  def calculate_walk_data(self, rect, area, frame):
-    if rect == -1:
-        return
-
-    (rect_x, rect_y, rect_w, rect_h) = rect
-
-    if self.isTrackedPerson(rect_w, rect_h, area):
-        self.display_track_image(rect, area, frame)
+      # self.custom_wait_key('frame', current_img, prvs_img)
+      cv2.imwrite('object-image' + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png',current_img)
 
   def calculate_optical_flow(self, prvs_gray, current_gray):
     flow = cv2.calcOpticalFlowFarneback(prvs_gray, current_gray, 0.5, 3, 15, 3, 5, 1.2, 0)
@@ -70,25 +53,61 @@ class ImageCalculater(object):
             total_threshold += abs(fx) + abs(fy)
             if abs(fx) + abs(fy) > 0.4:
                 binary_pic[i, j] = 255;
-    print('mean threshold is %f'%(total_threshold/(h*w)))
+    # print('mean threshold is %f'%(total_threshold/(h*w)))
 
     binary_pic_translated = self.conduct_translation(binary_pic)
     contours, hierarchy = cv2.findContours(binary_pic_translated,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    print('contours is %d'%(len(contours)))
+    # print('contours is %d'%(len(contours)))
     largest_area = 0
     largest_contour_index = 0
-    bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h = 0, 0, 0, 0
     if len(contours) > 0:
         for k in xrange(0, len(contours)):
             area = cv2.contourArea(contours[k])
             if largest_area < area:
                 largest_area = area
                 largest_contour_index = k
-                bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h = cv2.boundingRect(contours[k])
-        return ((bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h), largest_area)
+
+        return contours[largest_contour_index];
+
+        # return ((bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h), largest_area)
     else:
         print("contours is not found...")
-        return (-1, -1)
+        return False
+
+  def calculate_contour_by_frame(self, contour, frame):
+    if type(contour) is bool:
+      return
+
+    area = cv2.contourArea(contour)
+    rect = cv2.minAreaRect(contour)
+    (vx, vy), (x, y), angle = rect
+
+    if (area > 2000) and (abs(angle) < 4) and (float(y)/float(x) > 2):
+      print('area, %d, angle: %f, x/y: %f'%(area, abs(angle), float(y)/float(x) ))
+      box = np.int0(cv2.cv.BoxPoints(rect))
+      cv2.drawContours(frame, [box], 0, (255,255,255), 1, 8)
+      self.custom_wait_key('origin_frame', frame, frame)
+      self.save_image(frame, 'pics/')
+
+      return True
+    else:
+      return False
+
+
+    # area = cv2.contourArea(contour)
+    # if area > 1000:
+    #   ellipse = cv2.fitEllipse(contour)
+    #   print(ellipse)
+    #   print('end cllipse')
+    #   im = cv2.ellipse(frame,ellipse,(0,255,0),2)
+    # self.custom_wait_key('origin_frame', frame, frame)
+
+    # [vx,vy,x,y] = cv2.fitLine(contour, cv2.cv.CV_DIST_L2,0,0.01,0.01)
+    # lefty = int((-x*vy/vx) + y)
+    # righty = int(((self.frame_width-x)*vy/vx)+y)
+    # img = cv2.line(frame,(self.frame_width-1,righty),(0,lefty),(0,255,0),2)
+    # self.custom_wait_key('frame', frame, frame)
+    # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
   def search_by_optical_flow(self, camera):
     ret, prvs_frame = camera.read()
@@ -105,14 +124,12 @@ class ImageCalculater(object):
       count = count - 1
       if count == 1:
           count = intervel
-          rect, area = self.calculate_optical_flow(prvs_gray, current_gray)
-          self.calculate_walk_data(rect, area, current_gray)
+
+          contour = self.calculate_optical_flow(prvs_gray, current_gray)
+          if self.calculate_contour_by_frame(contour, prvs_gray):
+            return contour
 
           prvs_frame = current_frame
-
-      print("current area %d"%(area))
-
-
 
 if __name__ == "__main__":
   pass
