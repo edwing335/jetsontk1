@@ -24,13 +24,10 @@ class Tracker(object):
       cv2.destroyAllWindows()
 
   def init_robot(self):
-    cv2.namedWindow("frame")
-    cv2.namedWindow("origin_frame")
     self.camera = cv2.VideoCapture(self.video)
     atexit.register(self.release_devices)
 
   def start_search_object(self):
-    print("sss")
     self.image_processor.search_by_optical_flow(self.camera)
 
 def main():
