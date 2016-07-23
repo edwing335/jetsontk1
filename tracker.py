@@ -25,10 +25,12 @@ class Tracker(object):
 
   def init_robot(self):
     self.camera = cv2.VideoCapture(self.video)
+    self.image_processor.camera = self.camera
     atexit.register(self.release_devices)
 
   def start_search_object(self):
-    self.image_processor.search_by_optical_flow(self.camera)
+    frame, contour = self.image_processor.search_by_optical_flow()
+    self.image_processor.track_by_camshif(frame, contour)
 
 def main():
   tracker = Tracker()
