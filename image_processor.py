@@ -90,7 +90,7 @@ class ImageCalculater(object):
     rect = cv2.minAreaRect(contour)
     (vx, vy), (width, height), angle = rect
 
-    self.tracking_data_list.append({'contour': contour, 'angle': angle, 'width_height_ratio': float(width)/float(height)})
+    self.tracking_data_list.append({'contour': contour, 'angle': angle, 'rectangle': (vx, vy, width, height)})
 
   def got_tracking_object(self, contour):
     if type(contour) is bool:
@@ -122,8 +122,8 @@ class ImageCalculater(object):
     p2 = Polygon(current_box)
     overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
 
-    print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
     if (area > 2000 and overlap_ratio > 0.2):
+      print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
       return True
     else:
       return False
@@ -163,8 +163,8 @@ class ImageCalculater(object):
 
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
       current_image_bak = current_image.copy()
-      if self.debug:
-        self.custom_wait_key('origin_frame', current_image, current_image)
+      # if self.debug:
+        # self.custom_wait_key('origin_frame', current_image, current_image)
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
       if self.estimate_object_by_countor(contour):
@@ -174,7 +174,10 @@ class ImageCalculater(object):
           cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
           self.custom_wait_key('frame', current_image, current_image)
           self.save_image(current_image, 'pics/')
+          print('got tracking object and save it...')
 
+        self.add_contour_to_list(contour)
+        break
       else:
         prvs_image = current_image_bak
 
