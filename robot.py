@@ -47,7 +47,8 @@ class Robot(object):
       self.follow_object()
 
 def main():
-  robot = Robot('./robot.mp4')
+  # robot = Robot('./videos/robot.mp4')
+  robot = Robot()
   robot.init_devices()
 
   robot.working()

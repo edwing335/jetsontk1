@@ -85,12 +85,12 @@ class ImageCalculater(object):
 
   def add_contour_to_list(self, contour):
     if len(self.tracking_data_list) > 50:
-      del self.tracking_data_list[0]
+      del self.tracking_data_list[-1]
 
     rect = cv2.minAreaRect(contour)
     (vx, vy), (width, height), angle = rect
 
-    self.tracking_data_list.append({'contour': contour, 'angle': angle, 'rectangle': (vx, vy, width, height)})
+    self.tracking_data_list.insert(0, {'contour': contour, 'angle': abs(angle), 'rectangle': (vx, vy, width, height), 'height_width_ratio': float(height)/float(width)})
 
   def got_tracking_object(self, contour):
     if type(contour) is bool:
@@ -256,10 +256,54 @@ class ImageCalculater(object):
     # ((163.0, 137.5), (40.0, 101.0), -0.0) 'opticalfb-2016-07-23-21-12-22.png'
 
   def check_object_postion(self):
-    pass
+    #     self.tracking_data_list.insert(0, {'contour': contour, 'angle': abs(angle), 'rectangle': (vx, vy, width, height), 'height_width_ratio': float(height)/float(width)})
+
+    if self.debug:
+      print("check_object_postion")
+      print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
+
+    current_data = self.tracking_data_list[0]
+    (x, y, width, height) = current_data.get('rectangle')
+    image_ratio = (width * height)/(self.frame_width*self.frame_height)
+    if image_ratio < 0.3:
+      print('object is too far away')
+    elif image_ratio > 0.8:
+      print('object is too far away')
+    else:
+      print("object's distance is ok...")
+
+    if x > 320*0.7:
+      print('object is on the left')
+    elif x < 320*0.7 and x > 320*0.3:
+      print('object is on the middle')
+    else:
+      print('object is on the right')
 
   def check_object_status(self):
-    pass
+    if self.debug:
+      print("check_object_status")
+      print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
+
+    if len(self.tracking_data_list) > 8:
+      angle_list = [abs(self.tracking_data_list[i].get('angle') - 45) for i in xrange(8)]
+      angle_list.remove(max(angle_list))
+      angle_list.remove(min(angle_list))
+      mean_angle = np.mean(angle_list)
+
+      height_width_ratio_list = [self.tracking_data_list[i].get('height_width_ratio') for i in xrange(8)]
+      height_width_ratio_list.remove(max(height_width_ratio_list))
+      height_width_ratio_list.remove(min(height_width_ratio_list))
+      height_width_ratio = np.mean(height_width_ratio_list)
+
+      print(height_width_ratio)
+      print(mean_angle)
+
+      if np.mean(angle_list) < 15 and height_width_ratio>1.25:
+        print('the robot is falling down')
+        return False
+      else:
+        return True
+
 
 if __name__ == "__main__":
   pass
