@@ -5,7 +5,7 @@ import cv2
 import time
 import atexit
 import image_processor
-
+import ctypes
 
 class Robot(object):
   """docstring for tracker"""
@@ -22,10 +22,14 @@ class Robot(object):
       print "You are now leaving the Python sector."
       self.camera.release()
       cv2.destroyAllWindows()
+      gpio.release_robot_gpio()
 
   def init_devices(self):
     self.camera = cv2.VideoCapture(self.video)
     self.image_processor.camera = self.camera
+    gpio = ctypes.CDLL('.jetsonGPIO/jetsongpio.so')
+    gpio.init_robot_gpio()
+
     atexit.register(self.release_devices)
 
   def search_object_camshift(self):
