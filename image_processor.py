@@ -1,15 +1,21 @@
 import time
 import cv2
 import numpy as np
+from shapely.geometry import Polygon
 
 class ImageCalculater(object):
   """docstring for ImageCalculater"""
   def __init__(self, width, height):
     cv2.namedWindow("frame")
     cv2.namedWindow("origin_frame")
+    # self.debug = False
+    self.debug = True
     self.camera = None
     self.frame_width = width
     self.frame_height = height
+    self.tracking_data_list = []
+    self.prvs_image = None
+    self.intervel = self.counter = 3
 
   def save_image(self, frame, path='./', prefix='opticalfb'):
     cv2.imwrite(path + prefix + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png', frame)
@@ -78,24 +84,48 @@ class ImageCalculater(object):
         print("contours is not found...")
         return False
 
-  def calculate_contour_by_frame(self, contour, frame):
+  def add_contour_to_list(self, contour):
+    if len(self.tracking_data_list) > 50:
+      del self.tracking_data_list[0]
+
+    rect = cv2.minAreaRect(contour)
+    (vx, vy), (width, height), angle = rect
+
+    self.tracking_data_list.append({'contour': contour, 'angle': angle, 'width_height_ratio': float(width)/float(height)})
+
+  def got_tracking_object(self, contour):
     if type(contour) is bool:
       return
 
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     area = cv2.contourArea(contour)
     rect = cv2.minAreaRect(contour)
     (vx, vy), (x, y), angle = rect
+    # print(cv2.cv.BoxPoints(rect))
+    print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/float(x) ))
 
-    if (area > 2000) and (abs(angle) < 4) and (float(y)/float(x) > 2):
-      print(rect)
-      print('area: %d, angle: %f, x/y: %f'%(area, abs(angle), float(y)/float(x) ))
-      box = np.int0(cv2.cv.BoxPoints(rect))
-      cv2.drawContours(gray_frame, [box], 0, (255,255,255), 1, 8)
-      self.custom_wait_key('origin_frame', gray_frame, gray_frame)
-      self.save_image(frame, 'pics/')
-      self.save_image(gray_frame, 'pics/')
+    if (area > 1800 and (abs(angle) < 3) and (float(y)/float(x) > 2)):
+      return True
+    else:
+      return False
 
+  def estimate_object_by_countor(self, contour):
+    if type(contour) is bool:
+      return
+
+    area = cv2.contourArea(contour)
+    current_rect = cv2.minAreaRect(contour)
+    current_box = cv2.cv.BoxPoints(current_rect)
+    (vx, vy), (x, y), angle = current_rect
+
+    prvs_rect = cv2.minAreaRect(self.tracking_data_list[-1].get('contour'))
+    prvs_box = cv2.cv.BoxPoints(prvs_rect)
+
+    p1 = Polygon(prvs_box)
+    p2 = Polygon(current_box)
+    overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
+
+    print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
+    if (area > 2000 and overlap_ratio > 0.2):
       return True
     else:
       return False
@@ -119,40 +149,71 @@ class ImageCalculater(object):
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
-
-    count = intervel = 2
+    prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
 
     while(1):
-      ret, current_frame = self.camera.read()
-      prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      self.custom_wait_key('origin_frame', current_image, current_image)
+      grabbed, current_frame = self.camera.read()
+      if not grabbed:
+        return
 
-      count = count - 1
-      if count == 1:
-          count = intervel
+      if self.counter is 0:
+        self.counter = self.intervel
+      else:
+        self.counter = self.counter - 1
+        continue
 
-          contour = self.calculate_optical_flow(current_image, prvs_image)
-          if self.calculate_contour_by_frame(contour, prvs_image):
-            return current_image, contour
+      current_image_bak = current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      if self.debug:
+        self.custom_wait_key('origin_frame', current_image, current_image)
 
-          prvs_frame = current_frame
+      contour = self.calculate_optical_flow(current_image, prvs_image)
+      if self.estimate_object_by_countor(contour):
+        if self.debug:
+          current_rect = cv2.minAreaRect(contour)
+          cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
+          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+          self.custom_wait_key('frame', current_image, current_image)
+          self.save_image(current_image, 'pics/')
+
+      else:
+        prvs_image = current_image_bak
 
   def search_by_optical_flow(self):
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
+    prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+
     while(1):
-      ret, current_frame = self.camera.read()
-      prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      # self.custom_wait_key('origin_frame', current_image, current_image)
+      grabbed, current_frame = self.camera.read()
+      if not grabbed:
+        return
+
+      if self.counter is 0:
+        self.counter = self.intervel
+      else:
+        self.counter = self.counter - 1
+        continue
+
+      current_image_bak = current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      if self.debug:
+        self.custom_wait_key('origin_frame', current_image, current_image)
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
-      if self.calculate_contour_by_frame(contour, prvs_image):
-        return current_image, contour
+      if self.got_tracking_object(contour):
+        if self.debug:
+          current_rect = cv2.minAreaRect(contour)
+          cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
+          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+          self.custom_wait_key('frame', current_image, current_image)
+          self.save_image(current_image, 'pics/')
 
-      prvs_frame = current_frame
+        # prvs_image = current_image
+        self.add_contour_to_list(contour)
+        print('got object')
+        break
+      else:
+        prvs_image = current_image_bak
 
   def track_by_camshif(self, frame, contour):
     area = cv2.contourArea(contour)
@@ -190,6 +251,12 @@ class ImageCalculater(object):
     # image = cv2.imread("./pics/opticalfb-2016-07-23-21-12-53.png")
     # vx, vy, x, y, angle = np.int0((150.5, 127.5, 45.0, 91.0, -0.0))
     # ((163.0, 137.5), (40.0, 101.0), -0.0) 'opticalfb-2016-07-23-21-12-22.png'
+
+  def check_object_postion(self):
+    pass
+
+  def check_object_status(self):
+    pass
 
 if __name__ == "__main__":
   pass
