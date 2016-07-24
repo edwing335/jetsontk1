@@ -1,10 +1,9 @@
-# readme
-
 import sys
-import numpy as np
 import argparse
 import cv2
+import numpy as np
 import time
+import image_calculater
 import atexit
 
 # set numbers here
@@ -12,10 +11,11 @@ frame_width = 320
 frame_height = 240
 tacking_data = []
 camera = None
+is_get_object = False
 
-@atexit.register
 def release_devices():
     print "You are now leaving the Python sector."
+    global camera
     camera.release()
     cv2.destroyAllWindows()
 
@@ -70,6 +70,7 @@ def track_by_camshif():
     pass
 
 def isTrackedPerson(rect_w, rect_h, area):
+<<<<<<< HEAD
     print("current area is %d, %f"%(area, float(rect_h)/float(rect_w)) )
     if area > 500:
         if float(rect_h)/float(rect_w) > 1.25:
@@ -77,6 +78,19 @@ def isTrackedPerson(rect_w, rect_h, area):
         elif float(rect_h)/float(rect_w) > 1.25:
 
         return True
+=======
+    global is_get_object
+    if area > 800:
+        if float(rect_h)/float(rect_w) > 2:
+            is_get_object = True
+            print("get tracking object...")
+            print("current area is %d, %f"%(area, float(rect_h)/float(rect_w)) )
+            return True
+        elif float(rect_h)/float(rect_w) < 1.25:
+            print("object is down...")
+            return False
+
+>>>>>>> 08768eaa634556aadd824a414baa36a232054d6d
     else:
         return False
 
@@ -102,18 +116,20 @@ def calculate_walk_data(rect, area, frame):
     if isTrackedPerson(rect_w, rect_h, area):
         display_track_image(rect, area, frame)
 
+def start_search_object:
+    pass
 
-
-if __name__ == "__main__":
+def main():
     video = '../office2/video_1.avi'
     video1 = './robot.mp4'
     cv2.namedWindow("frame")
     cv2.namedWindow("origin_frame")
     # cv2.namedWindow("camshif_frame")
 
-    # global camera
+    global camera, get_object
 
     camera = cv2.VideoCapture(video1)
+    atexit.register(release_devices)
     # camera = cv2.VideoCapture(0)
     ret, prvs_frame = camera.read()
     count = intervel = 2
@@ -121,7 +137,7 @@ if __name__ == "__main__":
     while(1):
         ret, current_frame = camera.read()
         current_gray = cv2.resize(current_frame,(frame_width, frame_height), interpolation=cv2.INTER_LINEAR)
-        custom_wait_key('origin_frame', current_gray, current_gray)
+        # custom_wait_key('origin_frame', current_gray, current_gray)
         current_gray = cv2.cvtColor(current_gray, cv2.COLOR_BGR2GRAY)
         prvs_gray = cv2.resize(prvs_frame,(frame_width, frame_height), interpolation=cv2.INTER_LINEAR)
         prvs_gray = cv2.cvtColor(prvs_gray, cv2.COLOR_BGR2GRAY)
@@ -129,9 +145,16 @@ if __name__ == "__main__":
         count = count - 1
         if count == 1:
             count = intervel
-            rect, area = calculate_optical_flow(prvs_gray, current_gray)
-            calculate_walk_data(rect, area, current_gray)
+            if is_get_object:
+                track_by_camshif
+            else:
+                rect, area = calculate_optical_flow(prvs_gray, current_gray)
+                calculate_walk_data(rect, area, current_gray)
+
             prvs_frame = current_frame
 
     camera.release()
     cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
