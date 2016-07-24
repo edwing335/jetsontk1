@@ -15,7 +15,6 @@ class ImageCalculater(object):
     self.frame_height = height
     self.tracking_data_list = []
     self.prvs_image = None
-    self.intervel = self.counter = 3
 
   def save_image(self, frame, path='./', prefix='opticalfb'):
     cv2.imwrite(path + prefix + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png', frame)
@@ -145,6 +144,7 @@ class ImageCalculater(object):
     # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
   def tracking_by_optical_flow(self):
+    counter = intervel = 2
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -155,10 +155,10 @@ class ImageCalculater(object):
       if not grabbed:
         return
 
-      if self.counter is 0:
-        self.counter = self.intervel
+      if counter is 0:
+        counter = intervel
       else:
-        self.counter = self.counter - 1
+        counter = counter - 1
         continue
 
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
@@ -179,6 +179,7 @@ class ImageCalculater(object):
         prvs_image = current_image_bak
 
   def search_by_optical_flow(self):
+    counter = intervel = 2
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -189,10 +190,10 @@ class ImageCalculater(object):
       if not grabbed:
         return
 
-      if self.counter is 0:
-        self.counter = self.intervel
+      if counter is 0:
+        counter = intervel
       else:
-        self.counter = self.counter - 1
+        counter = counter - 1
         continue
 
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
