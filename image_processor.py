@@ -61,7 +61,7 @@ class ImageCalculater(object):
         for j in xrange(0,w,5):
             fx, fy = flow[i, j]
             total_threshold += abs(fx) + abs(fy)
-            if abs(fx) + abs(fy) > 0.4:
+            if abs(fx) + abs(fy) > 0.5:
                 binary_pic[i, j] = 255;
     # print('mean threshold is %f'%(total_threshold/(h*w)))
 
@@ -100,10 +100,9 @@ class ImageCalculater(object):
     area = cv2.contourArea(contour)
     rect = cv2.minAreaRect(contour)
     (vx, vy), (x, y), angle = rect
-    # print(cv2.cv.BoxPoints(rect))
     print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/float(x) ))
 
-    if (area > 1800 and (abs(angle) < 3) and (float(y)/float(x) > 2)):
+    if (area > 1800 and (abs(angle) < 5) and (float(y)/float(x) > 2)):
       return True
     else:
       return False
@@ -162,7 +161,8 @@ class ImageCalculater(object):
         self.counter = self.counter - 1
         continue
 
-      current_image_bak = current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      current_image_bak = current_image.copy()
       if self.debug:
         self.custom_wait_key('origin_frame', current_image, current_image)
 
@@ -195,20 +195,19 @@ class ImageCalculater(object):
         self.counter = self.counter - 1
         continue
 
-      current_image_bak = current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
-      if self.debug:
-        self.custom_wait_key('origin_frame', current_image, current_image)
-
+      current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+      current_image_bak = current_image.copy()
       contour = self.calculate_optical_flow(current_image, prvs_image)
+      if self.debug:
+        current_rect = cv2.minAreaRect(contour)
+        cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
+        cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+        self.custom_wait_key('frame', current_image, current_image)
+
       if self.got_tracking_object(contour):
         if self.debug:
-          current_rect = cv2.minAreaRect(contour)
-          cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
-          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
-          self.custom_wait_key('frame', current_image, current_image)
           self.save_image(current_image, 'pics/')
 
-        # prvs_image = current_image
         self.add_contour_to_list(contour)
         print('got object')
         break
