@@ -71,7 +71,11 @@ def track_by_camshif():
 
 def isTrackedPerson(rect_w, rect_h, area):
     print("current area is %d, %f"%(area, float(rect_h)/float(rect_w)) )
-    if area > 800 and float(rect_h)/float(rect_w) > 1.25:
+    if area > 500:
+        if float(rect_h)/float(rect_w) > 1.25:
+            print("get tracking object...")
+        elif float(rect_h)/float(rect_w) > 1.25:
+
         return True
     else:
         return False
@@ -131,5 +135,3 @@ if __name__ == "__main__":
 
     camera.release()
     cv2.destroyAllWindows()
-
-
