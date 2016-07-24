@@ -6,6 +6,7 @@ import time
 import atexit
 import image_processor
 import ctypes
+gpio = ctypes.CDLL('./jetsonGPIO/jetsongpio.so')
 
 class Robot(object):
   """docstring for tracker"""
@@ -27,7 +28,7 @@ class Robot(object):
   def init_devices(self):
     self.camera = cv2.VideoCapture(self.video)
     self.image_processor.camera = self.camera
-    gpio = ctypes.CDLL('.jetsonGPIO/jetsongpio.so')
+
     gpio.init_robot_gpio()
 
     atexit.register(self.release_devices)

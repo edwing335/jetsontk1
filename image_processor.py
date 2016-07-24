@@ -202,7 +202,7 @@ class ImageCalculater(object):
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
       current_image_bak = current_image.copy()
       contour = self.calculate_optical_flow(current_image, prvs_image)
-      if self.debug:
+      if self.debug and type(contour) is not bool:
         current_rect = cv2.minAreaRect(contour)
         cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
         cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
