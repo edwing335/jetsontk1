@@ -48,7 +48,6 @@ class Robot(object):
 
 def main():
   robot = Robot('./robot.mp4')
-  # tracker = Tracker()
   robot.init_devices()
 
   robot.working()
