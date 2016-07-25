@@ -16,14 +16,13 @@ class Robot(object):
     self.frame_height = 240
     self.tacking_data = []
     self.camera = None
-    self.is_get_object = False
     self.image_processor = image_processor.ImageCalculater(self.frame_width, self.frame_height)
 
   def release_devices(self):
-      print "You are now leaving the Python sector."
-      self.camera.release()
-      cv2.destroyAllWindows()
-      gpio.release_robot_gpio()
+    print "You are now leaving the Python sector."
+    self.camera.release()
+    cv2.destroyAllWindows()
+    gpio.release_robot_gpio()
 
   def init_devices(self):
     self.camera = cv2.VideoCapture(self.video)
