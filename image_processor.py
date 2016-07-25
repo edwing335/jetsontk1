@@ -99,7 +99,7 @@ class ImageCalculater(object):
     (vx, vy), (x, y), angle = rect
     image_ratio = (x * y)/(self.frame_width*self.frame_height)
     print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/ float(x) ))
-    if (area > 1500 and (abs(angle) < 10) and (float(y)/float(x) > 1.5) and image_ratio < 0.8):
+    if (area > 1500 and (abs(angle) < 10) and (float(y)/float(x) > 1.25) and image_ratio < 0.8):
       return True
     else:
       return False
@@ -121,7 +121,7 @@ class ImageCalculater(object):
     overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
 
     image_ratio = (x * y)/(self.frame_width*self.frame_height)
-    if (area > 2000 and overlap_ratio > 0.1 and image_ratio < 0.8):
+    if (area > 1500 and overlap_ratio > 0.1 and image_ratio < 0.8):
       print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
       return True
     else:
@@ -144,7 +144,7 @@ class ImageCalculater(object):
 
   def tracking_by_optical_flow(self):
     tracking_times = 5
-    counter = intervel = 4
+    counter = intervel = 2
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -173,13 +173,15 @@ class ImageCalculater(object):
       if self.estimate_object_by_countor(contour):
         if self.debug and type(contour) is not bool:
           cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
-          # current_rect = cv2.minAreaRect(contour)
-          # cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+          current_rect = cv2.minAreaRect(contour)
+          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
           self.custom_wait_key('origin_frame', current_image, current_image)
           # self.save_image(current_image, 'pics/')
           print('got tracking object and save it...')
 
         self.add_contour_to_list(contour)
+        if self.debug:
+          print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
         return True
       else:
         prvs_image = current_image_bak
@@ -218,7 +220,7 @@ class ImageCalculater(object):
         if self.debug:
           self.save_image(current_image, 'pics/')
 
-        del self.tracking_data_list[:]
+        # del self.tracking_data_list[:]
         self.add_contour_to_list(contour)
         print('got object')
         break
@@ -291,16 +293,15 @@ class ImageCalculater(object):
 
   def check_object_status(self):
     if self.debug:
-      print("check_object_status")
-      print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
+      print("start to detect object %d"%(len(self.tracking_data_list)))
 
-    if len(self.tracking_data_list) > 8:
-      angle_list = [abs(self.tracking_data_list[i].get('angle') - 45) for i in xrange(8)]
+    if len(self.tracking_data_list) > 5:
+      angle_list = [abs(self.tracking_data_list[i].get('angle') - 45) for i in xrange(5)]
       angle_list.remove(max(angle_list))
       angle_list.remove(min(angle_list))
       mean_angle = np.mean(angle_list)
 
-      height_width_ratio_list = [self.tracking_data_list[i].get('height_width_ratio') for i in xrange(8)]
+      height_width_ratio_list = [self.tracking_data_list[i].get('height_width_ratio') for i in xrange(5)]
       height_width_ratio_list.remove(max(height_width_ratio_list))
       height_width_ratio_list.remove(min(height_width_ratio_list))
       height_width_ratio = np.mean(height_width_ratio_list)

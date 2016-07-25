@@ -6,10 +6,12 @@ import argparse
 import cv2
 import time
 import atexit
+from multiprocessing import Process, Manager
 import image_processor
-import ctypes
+import detection
 from tts import loudspeaker
 
+import ctypes
 gpio = ctypes.CDLL('./jetsonGPIO/jetsongpio.so')
 
 class Robot(object):
@@ -18,19 +20,22 @@ class Robot(object):
     self.video = video
     self.frame_width = 320
     self.frame_height = 240
-    self.tacking_data = []
     self.camera = None
     self.debug = True
+    self.plist = []
     self.image_processor = image_processor.ImageCalculater(self.frame_width, self.frame_height)
     self.speaker = loudspeaker()
     # speaker.raise_alert()
 
-  def release_devices(self):
+  def release_robot_resources(self):
     print "You are now leaving the Python sector."
     self.camera.release()
     cv2.destroyAllWindows()
     gpio.release_robot_gpio()
-    speaker.release_tts()
+    self.speaker.release_tts()
+
+    for p in self.plist:
+      p.join()
 
   def init_devices(self):
     self.camera = cv2.VideoCapture(self.video)
@@ -39,7 +44,7 @@ class Robot(object):
     gpio.init_robot_gpio()
     gpio.set_speed(ctypes.c_float(0.8))
 
-    atexit.register(self.release_devices)
+    atexit.register(self.release_robot_resources)
 
   def search_object_camshift(self):
     frame, contour = self.image_processor.search_by_optical_flow()
@@ -47,7 +52,6 @@ class Robot(object):
 
   def follow_object(self):
     self.image_processor.check_object_postion()
-    # decide
 
   def checkout_object_status(self):
     position, distance = self.image_processor.check_object_postion()
@@ -74,27 +78,49 @@ class Robot(object):
 
     return False
 
-  def search_object(self):
+  def search_and_track_object(self, tacking_data):
+    print('start to search_and_track_object')
     self.image_processor.search_by_optical_flow()
-
-  def working(self):
     while True:
       if self.image_processor.tracking_by_optical_flow() is 'lost':
         print('lost object')
         self.image_processor.search_by_optical_flow()
       else:
-        if self.checkout_object_status() is False:
-          self.image_processor.search_by_optical_flow()
+        tacking_data = self.image_processor.tracking_data_list
+        print("search_and_track_object list count %d"%(len(self.tacking_data)))
+
+  def checking_object_falling(self, tacking_data):
+    while True:
+      if len(tacking_data) > 0:
+        print("checking_object_falling list count %d"%(len(tacking_data)))
+      if detection.check_object_status(tacking_data) is False:
+        self.speaker.raise_alert()
+
+  def start(self):
+    # p = Process(target = download, args = (node, exec_cmd));
+    tacking_data = []
+
+    tracking_worker = Process(target = self.search_and_track_object, args=(tacking_data))
+    tracking_worker.daemon = True
+
+    tracking_worker.start()
+
+    detect_falling_worker = Process(target = self.checking_object_falling, args=(tacking_data))
+    detect_falling_worker.daemon = True
+    detect_falling_worker.start()
+
+    self.plist.append(tracking_worker)
+    self.plist.append(detect_falling_worker)
+
+    for p in self.plist:
+      p.join()
 
 def main():
-  # robot = Robot('./videos/robot.mp4')
-  robot = Robot()
+  robot = Robot('./videos/robot.mp4')
+  # robot = Robot()
   robot.init_devices()
 
-  robot.search_object()
-  robot.working()
-  # robot.search_object_camshift()
-
+  robot.start()
 
 if __name__ == "__main__":
   main()
