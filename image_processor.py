@@ -97,9 +97,9 @@ class ImageCalculater(object):
     area = cv2.contourArea(contour)
     rect = cv2.minAreaRect(contour)
     (vx, vy), (x, y), angle = rect
-
+    image_ratio = (x * y)/(self.frame_width*self.frame_height)
     print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/ float(x) ))
-    if (area > 1800 and (abs(angle) < 10) and (float(y)/float(x) > 2)):
+    if (area > 1500 and (abs(angle) < 10) and (float(y)/float(x) > 1.5) and image_ratio < 0.8):
       return True
     else:
       return False
@@ -120,7 +120,8 @@ class ImageCalculater(object):
     p2 = Polygon(current_box)
     overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
 
-    if (area > 2000 and overlap_ratio > 0.1):
+    image_ratio = (x * y)/(self.frame_width*self.frame_height)
+    if (area > 2000 and overlap_ratio > 0.1 and image_ratio < 0.8):
       print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
       return True
     else:
@@ -186,7 +187,7 @@ class ImageCalculater(object):
 
   def search_by_optical_flow(self):
     counter = intervel = 2
-    for i in xrange(1,15):
+    for i in xrange(1,20):
       grabbed, prvs_frame = self.camera.read()
       if not grabbed:
         return
@@ -272,9 +273,9 @@ class ImageCalculater(object):
     (x, y, width, height) = current_data.get('rectangle')
     image_ratio = (width * height)/(self.frame_width*self.frame_height)
     position, distance = None, None
-    if image_ratio < 0.3:
+    if image_ratio < 0.2:
       distance = 'far'
-    elif image_ratio > 0.8:
+    elif image_ratio > 0.9:
       distance = 'close'
     else:
       distance = 'ok'
