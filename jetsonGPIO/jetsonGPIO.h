@@ -93,5 +93,9 @@ int go_straight(void);
 int go_back(void);
 int go_speed(int angle,int pulse);
 int go_swerve(int angle,int pulse);
+int set_speed(float speed);
+void go_straight_with_time(unsigned int time);
+void go_back_with_time(unsigned int time);
+void go_swerve_with_time(unsigned int times, unsigned int angle);
 
 #endif // JETSONGPIO_H_
