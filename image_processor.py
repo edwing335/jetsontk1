@@ -6,8 +6,8 @@ from shapely.geometry import Polygon
 class ImageCalculater(object):
   """docstring for ImageCalculater"""
   def __init__(self, width, height):
-    cv2.namedWindow("frame")
     cv2.namedWindow("origin_frame")
+    # cv2.namedWindow("frame")
     # self.debug = False
     self.debug = True
     self.camera = None
@@ -77,8 +77,6 @@ class ImageCalculater(object):
                 largest_contour_index = k
 
         return contours[largest_contour_index];
-
-        # return ((bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h), largest_area)
     else:
         print("contours is not found...")
         return False
@@ -144,7 +142,7 @@ class ImageCalculater(object):
     # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
   def tracking_by_optical_flow(self):
-    counter = intervel = 2
+    counter = intervel = 3
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -155,7 +153,7 @@ class ImageCalculater(object):
       if not grabbed:
         return
 
-      if counter is 0:
+      if counter is 1:
         counter = intervel
       else:
         counter = counter - 1
@@ -168,12 +166,12 @@ class ImageCalculater(object):
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
       if self.estimate_object_by_countor(contour):
-        if self.debug:
-          current_rect = cv2.minAreaRect(contour)
+        if self.debug and type(contour) is not bool:
           cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
-          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
-          self.custom_wait_key('frame', current_image, current_image)
-          self.save_image(current_image, 'pics/')
+          # current_rect = cv2.minAreaRect(contour)
+          # cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+          self.custom_wait_key('origin_frame', current_image, current_image)
+          # self.save_image(current_image, 'pics/')
           print('got tracking object and save it...')
 
         self.add_contour_to_list(contour)
@@ -182,10 +180,11 @@ class ImageCalculater(object):
         prvs_image = current_image_bak
 
   def search_by_optical_flow(self):
-    counter = intervel = 2
-    grabbed, prvs_frame = self.camera.read()
-    if not grabbed:
-      return
+    counter = intervel = 1
+    for i in xrange(1,15):
+      grabbed, prvs_frame = self.camera.read()
+      if not grabbed:
+        return
     prvs_image = cv2.resize(prvs_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
 
     while(1):
@@ -202,11 +201,12 @@ class ImageCalculater(object):
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
       current_image_bak = current_image.copy()
       contour = self.calculate_optical_flow(current_image, prvs_image)
+
       if self.debug and type(contour) is not bool:
         current_rect = cv2.minAreaRect(contour)
         cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
         cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
-        self.custom_wait_key('frame', current_image, current_image)
+        self.custom_wait_key('origin_frame', current_image, current_image)
 
       if self.got_tracking_object(contour):
         if self.debug:
@@ -295,8 +295,9 @@ class ImageCalculater(object):
       height_width_ratio_list.remove(min(height_width_ratio_list))
       height_width_ratio = np.mean(height_width_ratio_list)
 
-      print(height_width_ratio)
-      print(mean_angle)
+      if self.debug:
+        print("height_width_ratio is %f"%(height_width_ratio))
+        print("mean_angle is %f"%(mean_angle))
 
       if np.mean(angle_list) < 15 and height_width_ratio>1.25:
         print('the robot is falling down')
