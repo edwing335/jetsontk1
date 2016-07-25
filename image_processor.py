@@ -97,9 +97,9 @@ class ImageCalculater(object):
     area = cv2.contourArea(contour)
     rect = cv2.minAreaRect(contour)
     (vx, vy), (x, y), angle = rect
-    print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/float(x) ))
 
-    if (area > 1800 and (abs(angle) < 5) and (float(y)/float(x) > 2)):
+    print('area: %d, angle: %f, y/x: %f'%(area, abs(angle), float(y)/ float(x) ))
+    if (area > 1800 and (abs(angle) < 10) and (float(y)/float(x) > 2)):
       return True
     else:
       return False
@@ -120,7 +120,7 @@ class ImageCalculater(object):
     p2 = Polygon(current_box)
     overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
 
-    if (area > 2000 and overlap_ratio > 0.2):
+    if (area > 2000 and overlap_ratio > 0.1):
       print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
       return True
     else:
@@ -142,7 +142,8 @@ class ImageCalculater(object):
     # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
   def tracking_by_optical_flow(self):
-    counter = intervel = 3
+    tracking_times = 5
+    counter = intervel = 4
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -158,6 +159,9 @@ class ImageCalculater(object):
       else:
         counter = counter - 1
         continue
+
+      if tracking_times < 0:
+        return 'lost'
 
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
       current_image_bak = current_image.copy()
@@ -175,12 +179,13 @@ class ImageCalculater(object):
           print('got tracking object and save it...')
 
         self.add_contour_to_list(contour)
-        break
+        return True
       else:
         prvs_image = current_image_bak
+        tracking_times = tracking_times - 1
 
   def search_by_optical_flow(self):
-    counter = intervel = 1
+    counter = intervel = 2
     for i in xrange(1,15):
       grabbed, prvs_frame = self.camera.read()
       if not grabbed:
@@ -212,6 +217,7 @@ class ImageCalculater(object):
         if self.debug:
           self.save_image(current_image, 'pics/')
 
+        del self.tracking_data_list[:]
         self.add_contour_to_list(contour)
         print('got object')
         break
@@ -265,19 +271,22 @@ class ImageCalculater(object):
     current_data = self.tracking_data_list[0]
     (x, y, width, height) = current_data.get('rectangle')
     image_ratio = (width * height)/(self.frame_width*self.frame_height)
+    position, distance = None, None
     if image_ratio < 0.3:
-      print('object is too far away')
+      distance = 'far'
     elif image_ratio > 0.8:
-      print('object is too far away')
+      distance = 'close'
     else:
-      print("object's distance is ok...")
+      distance = 'ok'
 
-    if x > 320*0.7:
-      print('object is on the left')
-    elif x < 320*0.7 and x > 320*0.3:
-      print('object is on the middle')
+    if (x+width) > 320*0.7:
+      position = 'right'
+    elif x > 320*0.3 and (x+width) < 320*0.7:
+      position = 'ok'
     else:
-      print('object is on the right')
+      position = 'left'
+
+    return position, distance
 
   def check_object_status(self):
     if self.debug:
@@ -302,8 +311,8 @@ class ImageCalculater(object):
       if np.mean(angle_list) < 15 and height_width_ratio>1.25:
         print('the robot is falling down')
         return False
-      else:
-        return True
+
+    return True
 
 
 if __name__ == "__main__":
