@@ -6,15 +6,12 @@ from shapely.geometry import Polygon
 class ImageCalculater(object):
   """docstring for ImageCalculater"""
   def __init__(self, width, height):
-    cv2.namedWindow("origin_frame")
-    # cv2.namedWindow("frame")
-    # self.debug = False
-    self.debug = True
+    self.debug = False
+    # self.debug = True
     self.camera = None
     self.frame_width = width
     self.frame_height = height
     self.tracking_data_list = []
-    self.prvs_image = None
 
   def save_image(self, frame, path='./', prefix='opticalfb'):
     cv2.imwrite(path + prefix + time.strftime("-%Y-%m-%d-%H-%M-%S", time.localtime())  + '.png', frame)
@@ -70,16 +67,17 @@ class ImageCalculater(object):
     largest_area = 0
     largest_contour_index = 0
     if len(contours) > 0:
-        for k in xrange(0, len(contours)):
-            area = cv2.contourArea(contours[k])
-            if largest_area < area:
-                largest_area = area
-                largest_contour_index = k
+      for k in xrange(0, len(contours)):
+          area = cv2.contourArea(contours[k])
+          if largest_area < area:
+              largest_area = area
+              largest_contour_index = k
 
-        return contours[largest_contour_index];
+      return contours[largest_contour_index];
     else:
+      if self.debug:
         print("contours is not found...")
-        return False
+      return False
 
   def add_contour_to_list(self, contour):
     if len(self.tracking_data_list) > 50:
@@ -121,8 +119,10 @@ class ImageCalculater(object):
     overlap_ratio = p1.intersection(p2).area/(p1.area + p2.area - p1.intersection(p2).area)
 
     image_ratio = (x * y)/(self.frame_width*self.frame_height)
-    if (area > 1500 and overlap_ratio > 0.1 and image_ratio < 0.8):
+    if self.debug:
       print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
+
+    if (area > 1500 and overlap_ratio > 0.1 and image_ratio < 0.9):
       return True
     else:
       return False
@@ -143,7 +143,7 @@ class ImageCalculater(object):
     # im = cv2.drawContours(im,[box],0,(0,0,255),2)
 
   def tracking_by_optical_flow(self):
-    tracking_times = 5
+    tracking_times = 3
     counter = intervel = 2
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
@@ -161,8 +161,8 @@ class ImageCalculater(object):
         counter = counter - 1
         continue
 
-      if tracking_times < 0:
-        return 'lost'
+      # if tracking_times < 0:
+      #   return 'lost'
 
       current_image = cv2.resize(current_frame,(self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
       current_image_bak = current_image.copy()
@@ -170,18 +170,15 @@ class ImageCalculater(object):
         # self.custom_wait_key('origin_frame', current_image, current_image)
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
+      if self.debug is False and type(contour) is not bool:
+        cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
+        current_rect = cv2.minAreaRect(contour)
+        cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+        self.custom_wait_key('origin_frame', current_image, current_image)
+        # self.save_image(current_image, 'pics/')
+        # print('got tracking object and save it...')
       if self.estimate_object_by_countor(contour):
-        if self.debug and type(contour) is not bool:
-          cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
-          current_rect = cv2.minAreaRect(contour)
-          cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
-          self.custom_wait_key('origin_frame', current_image, current_image)
-          # self.save_image(current_image, 'pics/')
-          print('got tracking object and save it...')
-
         self.add_contour_to_list(contour)
-        if self.debug:
-          print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
         return True
       else:
         prvs_image = current_image_bak
