@@ -14,7 +14,7 @@ def check_object_status(tracking_data_list):
     height_width_ratio = np.mean(height_width_ratio_list)
 
     if debug:
-      print("height_width_ratio is %f\n"%(height_width_ratio))
+      print("height_width_ratio is %f"%(height_width_ratio))
       print("mean_angle is %f"%(mean_angle))
 
     if np.mean(angle_list) < 15 and height_width_ratio < 0.7:
