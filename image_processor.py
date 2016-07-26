@@ -6,8 +6,8 @@ from shapely.geometry import Polygon
 class ImageCalculater(object):
   """docstring for ImageCalculater"""
   def __init__(self, width, height):
-    self.debug = False
-    # self.debug = True
+    # self.debug = False
+    self.debug = True
     self.camera = None
     self.frame_width = width
     self.frame_height = height
@@ -111,7 +111,7 @@ class ImageCalculater(object):
     current_box = cv2.cv.BoxPoints(current_rect)
     (vx, vy), (x, y), angle = current_rect
 
-    prvs_rect = cv2.minAreaRect(self.tracking_data_list[-1].get('contour'))
+    prvs_rect = cv2.minAreaRect(self.tracking_data_list[0].get('contour'))
     prvs_box = cv2.cv.BoxPoints(prvs_rect)
 
     p1 = Polygon(prvs_box)
@@ -122,7 +122,7 @@ class ImageCalculater(object):
     if self.debug:
       print('area: %d, angle: %f, y/x: %f, overlap_ratio: %f'%(area, abs(angle), float(y)/float(x), overlap_ratio))
 
-    if (area > 1500 and overlap_ratio > 0.1 and image_ratio < 0.9):
+    if (area > 600 and image_ratio < 0.9):
       return True
     else:
       return False
@@ -170,7 +170,7 @@ class ImageCalculater(object):
         # self.custom_wait_key('origin_frame', current_image, current_image)
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
-      if self.debug is False and type(contour) is not bool:
+      if self.debug is True and type(contour) is not bool:
         cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
         current_rect = cv2.minAreaRect(contour)
         cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
@@ -178,6 +178,8 @@ class ImageCalculater(object):
         # self.save_image(current_image, 'pics/')
         # print('got tracking object and save it...')
       if self.estimate_object_by_countor(contour):
+        if self.debug:
+          print('got object...')
         self.add_contour_to_list(contour)
         return True
       else:

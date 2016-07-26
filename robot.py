@@ -30,8 +30,8 @@ class Robot(object):
   def release_robot_resources(self):
     print "You are now leaving the Python sector."
     self.camera.release()
-    # gpio.release_robot_gpio()
-    # self.speaker.release_tts()
+    gpio.release_robot_gpio()
+    self.speaker.release_tts()
 
     if self.debug:
       cv2.destroyAllWindows()
@@ -40,8 +40,8 @@ class Robot(object):
     self.camera = cv2.VideoCapture(self.video)
     self.image_processor.camera = self.camera
 
-    # gpio.init_robot_gpio()
-    # gpio.set_speed(ctypes.c_float(0.8))
+    gpio.init_robot_gpio()
+    gpio.set_speed(ctypes.c_float(0.8))
 
     atexit.register(self.release_robot_resources)
     if self.debug:
@@ -99,15 +99,13 @@ def start_tracking(q):
       # print("search_and_track_object list count %d"%(len(tracking_data_list)))
 
 def start_detecting(q):
+  speaker = loudspeaker()
   print('start detection')
   while True:
     data_list = q.get()
-    # print(data_list)
-    if len(data_list) > 5:
-      if detection.check_object_status(data_list) is False:
-        print('someone is falling down...')
-        # break
-        # loudspeaker.raise_alert()
+    if detection.check_object_status(data_list) is False:
+      print('someone is falling down...')
+      # speaker.raise_alert()
 
 def start_moving(q):
   print('start moving')
