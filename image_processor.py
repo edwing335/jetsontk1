@@ -263,59 +263,6 @@ class ImageCalculater(object):
     # vx, vy, x, y, angle = np.int0((150.5, 127.5, 45.0, 91.0, -0.0))
     # ((163.0, 137.5), (40.0, 101.0), -0.0) 'opticalfb-2016-07-23-21-12-22.png'
 
-  def check_object_postion(self):
-    #     self.tracking_data_list.insert(0, {'contour': contour, 'angle': abs(angle), 'rectangle': (vx, vy, width, height), 'height_width_ratio': float(height)/float(width)})
-
-    if self.debug:
-      print("check_object_postion")
-      print("len self.tracking_data_list %d"%(len(self.tracking_data_list)))
-
-    current_data = self.tracking_data_list[0]
-    (x, y, width, height) = current_data.get('rectangle')
-    image_ratio = (width * height)/(self.frame_width*self.frame_height)
-    position, distance = None, None
-    if image_ratio < 0.2:
-      distance = 'far'
-    elif image_ratio > 0.9:
-      distance = 'close'
-    else:
-      distance = 'ok'
-
-    if (x+width) > 320*0.7:
-      position = 'right'
-    elif x > 320*0.3 and (x+width) < 320*0.7:
-      position = 'ok'
-    else:
-      position = 'left'
-
-    return position, distance
-
-  def check_object_status(self):
-    if self.debug:
-      print("start to detect object %d"%(len(self.tracking_data_list)))
-
-    if len(self.tracking_data_list) > 5:
-      angle_list = [abs(self.tracking_data_list[i].get('angle') - 45) for i in xrange(5)]
-      angle_list.remove(max(angle_list))
-      angle_list.remove(min(angle_list))
-      mean_angle = np.mean(angle_list)
-
-      height_width_ratio_list = [self.tracking_data_list[i].get('height_width_ratio') for i in xrange(5)]
-      height_width_ratio_list.remove(max(height_width_ratio_list))
-      height_width_ratio_list.remove(min(height_width_ratio_list))
-      height_width_ratio = np.mean(height_width_ratio_list)
-
-      if self.debug:
-        print("height_width_ratio is %f"%(height_width_ratio))
-        print("mean_angle is %f"%(mean_angle))
-
-      if np.mean(angle_list) < 15 and height_width_ratio>1.25:
-        print('the robot is falling down')
-        return False
-
-    return True
-
-
 if __name__ == "__main__":
   pass
 else:
