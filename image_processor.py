@@ -35,7 +35,6 @@ class ImageCalculater(object):
       prvs_img = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
       current_img = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
       bounding_rect_x, bounding_rect_y, bounding_rect_w, bounding_rect_h = rect
-
       center_point = (bounding_rect_x+bounding_rect_w/2, bounding_rect_y+bounding_rect_h/2)
       # cv2.drawContours(current_img, contours, largest_contour_index, (255,255,255), 1, 8, hierarchy)
       cv2.rectangle(current_img, (bounding_rect_x, bounding_rect_y), (bounding_rect_x+bounding_rect_w, bounding_rect_y+bounding_rect_h), (0,255,0), 1, 8, 0);
@@ -57,7 +56,7 @@ class ImageCalculater(object):
         for j in xrange(0,w,5):
             fx, fy = flow[i, j]
             total_threshold += abs(fx) + abs(fy)
-            if abs(fx) + abs(fy) > 0.5:
+            if abs(fx) + abs(fy) > 0.45:
                 binary_pic[i, j] = 255;
     # print('mean threshold is %f'%(total_threshold/(h*w)))
 
@@ -79,14 +78,14 @@ class ImageCalculater(object):
         print("contours is not found...")
       return False
 
-  def add_contour_to_list(self, contour):
-    if len(self.tracking_data_list) > 50:
+  def add_contour_to_list(self, contour, image):
+    if len(self.tracking_data_list) > 10:
       del self.tracking_data_list[-1]
 
     rect = cv2.minAreaRect(contour)
     (vx, vy), (width, height), angle = rect
 
-    self.tracking_data_list.insert(0, {'contour': contour, 'angle': abs(angle), 'rectangle': (vx, vy, width, height), 'height_width_ratio': float(height)/float(width)})
+    self.tracking_data_list.insert(0, {'image': image, 'contour': contour, 'angle': abs(angle), 'rectangle': (vx, vy, width, height), 'height_width_ratio': float(height)/float(width)})
 
   def got_tracking_object(self, contour):
     if type(contour) is bool:
@@ -144,7 +143,7 @@ class ImageCalculater(object):
 
   def tracking_by_optical_flow(self):
     tracking_times = 3
-    counter = intervel = 2
+    counter = intervel = 3
     grabbed, prvs_frame = self.camera.read()
     if not grabbed:
       return
@@ -171,16 +170,26 @@ class ImageCalculater(object):
 
       contour = self.calculate_optical_flow(current_image, prvs_image)
       if self.debug is True and type(contour) is not bool:
-        cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
         current_rect = cv2.minAreaRect(contour)
+        cv2.drawContours(current_image, [contour], 0, (255,255,255), 1, 8)
         cv2.drawContours(current_image, [np.int0(cv2.cv.BoxPoints(current_rect))], 0, (255,255,255), 1, 8)
+
+
+        (bounding_rect_x, bounding_rect_y), (bounding_rect_w, bounding_rect_h), angle = current_rect
+        center_point = (int(bounding_rect_x+bounding_rect_w/2), int(bounding_rect_y+bounding_rect_h/2))
+        # cv2.circle(current_image, center_point, 2, (0,0,255), -1, 8, 0)
+        M = cv2.moments(contour)
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        cv2.circle(current_image, (cx, cy), 2, (0,0,255), -1, 8, 0)
+
         self.custom_wait_key('origin_frame', current_image, current_image)
         # self.save_image(current_image, 'pics/')
         # print('got tracking object and save it...')
       if self.estimate_object_by_countor(contour):
         if self.debug:
           print('got object...')
-        self.add_contour_to_list(contour)
+        self.add_contour_to_list(contour, current_image)
         return True
       else:
         prvs_image = current_image_bak
@@ -220,7 +229,7 @@ class ImageCalculater(object):
           self.save_image(current_image, 'pics/')
 
         # del self.tracking_data_list[:]
-        self.add_contour_to_list(contour)
+        self.add_contour_to_list(contour, current_image)
         print('got object')
         break
       else:
