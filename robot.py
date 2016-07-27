@@ -10,9 +10,7 @@ from multiprocessing import Process, Manager, Queue
 from image_processor import ImageCalculater
 import detection
 from tts import loudspeaker
-
-import ctypes
-gpio = ctypes.CDLL('./jetsonGPIO/jetsongpio.so')
+from jetsongpio import Gpio
 
 class Robot(object):
   """docstring for tracker"""
@@ -22,63 +20,21 @@ class Robot(object):
     self.frame_height = 240
     self.camera = None
     self.debug = True
-    self.image_processor = ImageCalculater(self.frame_width, self.frame_height)
 
     # self.speaker = loudspeaker()
     # speaker.raise_alert()
 
   def release_robot_resources(self):
     print "You are now leaving the Python sector."
-    self.camera.release()
-    gpio.release_robot_gpio()
-    self.speaker.release_tts()
 
     if self.debug:
       cv2.destroyAllWindows()
 
   def init_resources(self):
-    self.camera = cv2.VideoCapture(self.video)
-    self.image_processor.camera = self.camera
-
-    gpio.init_robot_gpio()
-    gpio.set_speed(ctypes.c_float(0.8))
-
     atexit.register(self.release_robot_resources)
     if self.debug:
       cv2.namedWindow("origin_frame")
       # cv2.namedWindow("frame")
-
-  def search_object_camshift(self):
-    frame, contour = self.image_processor.search_by_optical_flow()
-    self.image_processor.track_by_camshif(frame, contour)
-
-  def follow_object(self):
-    self.image_processor.check_object_postion()
-
-  def checkout_object_status(self):
-    position, distance = self.image_processor.check_object_postion()
-    if self.debug:
-      print("position is %s, distance is %s"%(position, distance))
-
-    if position is 'left':
-      gpio.go_swerve_with_time(ctypes.c_uint(1), ctypes.c_uint(45))
-    elif position is 'right':
-      gpio.go_swerve_with_time(ctypes.c_uint(1), ctypes.c_uint(135))
-    elif position is 'ok':
-      print('dont change the position')
-      return True
-
-    if distance is 'far':
-      gpio.go_straight_with_time(ctypes.c_uint(2))
-      gpio.go_stop()
-    elif distance is 'close':
-      # gpio.go_back_with_time(ctypes.c_uint(2))
-      gpio.go_stop()
-    elif distance is 'ok':
-      print('dont change the distance position')
-      return True
-
-    return False
 
 def start_tracking(q):
   robot = Robot()
@@ -109,9 +65,15 @@ def start_detecting(q):
 
 def start_moving(q):
   print('start moving')
+  gpio = Gpio()
+  gpio.init_gpio()
+  gpio.set_speed(0.8)
+  gpio.move_straight(3)
+  gpio.move_back(3)
   while True:
-    if len(q.get()) > 0:
-      print("start_detection list count %d"%(len(q.get())))
+    data_list = q.get()
+    if len(data_list) > 0:
+      gpio.follow_by_object(data_list)
 
 def main():
 
@@ -127,7 +89,7 @@ def main():
 
   moving_worker = Process(target = start_moving, args=(q,))
   moving_worker.daemon = True
-  # moving_worker.start()
+  moving_worker.start()
 
   detect_falling_worker.join()
   tracking_worker.join()
