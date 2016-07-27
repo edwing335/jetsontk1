@@ -33,6 +33,7 @@
 *.su
 *.mp4
 *.pyc
+*.pptx
 .DS_Store
 pics/
 videos/
