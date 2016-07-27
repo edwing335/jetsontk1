@@ -44,7 +44,7 @@ def start_tracking(q):
 
   # image_processor = ImageCalculater(robot.frame_width, robot.frame_height)
   image_processor = ImageCalculater(320, 240)
-  image_processor.camera = cv2.VideoCapture('./videos/IMG_1958.m4v')
+  image_processor.camera = cv2.VideoCapture('./videos/falling_one.m4v')
   image_processor.search_by_optical_flow()
 
   while True:
@@ -69,10 +69,10 @@ def main():
   q = Queue()
 
   detect_falling_worker = Process(target = start_detecting, args=(q,))
-  detect_falling_worker.daemon = True
+  detect_falling_worker.daemon = False
   detect_falling_worker.start()
 
-  robot = Robot(0)
+  robot = Robot('./videos/falling_1.m4v')
   robot.init_resources()
   image_processor = ImageCalculater(robot.frame_width, robot.frame_height)
   image_processor.camera = robot.camera
