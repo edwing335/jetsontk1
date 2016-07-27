@@ -65,27 +65,7 @@ def start_detecting(q):
       print('someone is falling down...')
       # speaker.raise_alert()
 
-def start_moving(q):
-  print('start moving')
-  while True:
-    if len(q.get()) > 0:
-      print("start_detection list count %d"%(len(q.get())))
-
 def main():
-  # camera = cv2.VideoCapture('./videos/IMG_1958.m4v')
-  # robot = Robot(0, camera)
-  # robot = Robot('./videos/IMG_1958.m4v')
-  # robot.init_resources()
-  # tracking_worker = Process(target = start_tracking, args=(q,))
-  # tracking_worker.daemon = False
-  # tracking_worker.start()
-  # tracking_worker.join()
-  # cv2.namedWindow("origin_frame")
-  # moving_worker = Process(target = start_moving, args=(q,))
-  # moving_worker.daemon = True
-  # moving_worker.start()
-  # moving_worker.join()
-
   q = Queue()
 
   detect_falling_worker = Process(target = start_detecting, args=(q,))
